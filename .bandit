@@ -1,0 +1,9 @@
+exclude_dirs:
+  - /venv/
+  - /.venv/
+  - /tests/
+  - /__pycache__/
+
+skips:
+  - B101  # Permite el uso de assert en tests
+  - B601  # Permite shell=False en subprocess
