@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Categorías - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Gestión de Categorías</h2>
+</div>
+
+<div class="form-section">
+    <h3 id="form-title">Crear Nueva Categoría</h3>
+    <form id="category-form">
+        <input type="hidden" id="category-id">
+        <div class="form-group">
+            <label for="category-name">Nombre de la Categoría:</label>
+            <input type="text" id="category-name" required>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submit-btn">Crear Categoría</button>
+            <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">Cancelar</button>
+        </div>
+    </form>
+</div>
+
+<div class="table-section">
+    <h3>Listado de Categorías</h3>
+    <div id="message" class="message" style="display: none;"></div>
+    <table id="categories-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Productos</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="categories-list">
+            <tr><td colspan="4" class="loading">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+    let editingId = null;
+
+    async function loadCategories() {
+        try {
+            const response = await fetch(`${API_URL}/api/categories`);
+            const categories = await response.json();
+
+            const tbody = document.getElementById('categories-list');
+            if (categories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">No hay categorías registradas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = categories.map(cat => `
+                <tr>
+                    <td>${cat.id}</td>
+                    <td>${cat.name}</td>
+                    <td>${cat.product_count}</td>
+                    <td>
+                        <button onclick="editCategory(${cat.id}, '${cat.name}')" class="btn btn-small btn-edit">Editar</button>
+                        <button onclick="deleteCategory(${cat.id})" class="btn btn-small btn-delete">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            showMessage('Error al cargar categorías: ' + error.message, 'error');
+        }
+    }
+
+    function editCategory(id, name) {
+        editingId = id;
+        document.getElementById('category-id').value = id;
+        document.getElementById('category-name').value = name;
+        document.getElementById('form-title').textContent = 'Editar Categoría';
+        document.getElementById('submit-btn').textContent = 'Actualizar Categoría';
+        document.getElementById('cancel-btn').style.display = 'inline-block';
+    }
+
+    function cancelEdit() {
+        editingId = null;
+        document.getElementById('category-form').reset();
+        document.getElementById('form-title').textContent = 'Crear Nueva Categoría';
+        document.getElementById('submit-btn').textContent = 'Crear Categoría';
+        document.getElementById('cancel-btn').style.display = 'none';
+    }
+
+    async function deleteCategory(id) {
+        if (!confirm('¿Está seguro de eliminar esta categoría?')) return;
+
+        try {
+            const response = await fetch(`${API_URL}/api/categories/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showMessage('Categoría eliminada exitosamente', 'success');
+                loadCategories();
+            } else {
+                const error = await response.json();
+                showMessage('Error: ' + error.error, 'error');
+            }
+        } catch (error) {
+            showMessage('Error al eliminar: ' + error.message, 'error');
+        }
+    }
+
+    document.getElementById('category-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('category-name').value;
+        const url = editingId
+            ? `${API_URL}/api/categories/${editingId}`
+            : `${API_URL}/api/categories`;
+        const method = editingId ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name })
+            });
+
+            if (response.ok) {
+                showMessage(`Categoría ${editingId ? 'actualizada' : 'creada'} exitosamente`, 'success');
+                document.getElementById('category-form').reset();
+                cancelEdit();
+                loadCategories();
+            } else {
+                const error = await response.json();
+                showMessage('Error: ' + error.error, 'error');
+            }
+        } catch (error) {
+            showMessage('Error: ' + error.message, 'error');
+        }
+    });
+
+    document.getElementById('cancel-btn').addEventListener('click', cancelEdit);
+    document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Panel de Control - Sistema de Inventario</h2>
+    <p style="text-align: center; color: #7f8c8d; margin-top: 0.5rem;">Gestiona tus productos y categorías de manera eficiente</p>
+</div>
+
+<div class="stats" id="stats" style="margin-bottom: 2rem;">
+    <h3>Estadísticas del Sistema</h3>
+    <div class="stat-cards">
+        <div class="stat-card">
+            <div class="stat-value" id="total-categories">
+                <span style="font-size: 1rem; color: #7f8c8d;">Cargando...</span>
+            </div>
+            <div class="stat-label">Categorías Totales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="total-products">
+                <span style="font-size: 1rem; color: #7f8c8d;">Cargando...</span>
+            </div>
+            <div class="stat-label">Productos Totales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="low-stock">
+                <span style="font-size: 1rem; color: #7f8c8d;">Cargando...</span>
+            </div>
+            <div class="stat-label">Bajo Stock (< 5)</div>
+        </div>
+    </div>
+</div>
+
+<div class="form-section">
+    <h3>Accesos Rápidos</h3>
+    <div class="cards">
+        <div class="card">
+            <h3 style="margin-top: 0;">📁 Categorías</h3>
+            <p>Organiza tus productos en categorías para una mejor gestión del inventario</p>
+            <a href="/categories" class="btn btn-primary">Gestionar Categorías</a>
+        </div>
+        
+        <div class="card">
+            <h3 style="margin-top: 0;">📦 Productos</h3>
+            <p>Administra tu inventario de productos con control de stock y precios</p>
+            <a href="/products" class="btn btn-primary">Gestionar Productos</a>
+        </div>
+    </div>
+</div>
+
+<div class="table-section">
+    <h3>Productos Recientes</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="recent-products">
+            <tr><td colspan="5" class="loading">Cargando productos recientes...</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadStats() {
+        try {
+            // Cargar categorías
+            const categoriesRes = await fetch(`${API_URL}/api/categories`);
+            const categories = await categoriesRes.json();
+            document.getElementById('total-categories').innerHTML = categories.length;
+
+            // Cargar productos
+            const productsRes = await fetch(`${API_URL}/api/products`);
+            const products = await productsRes.json();
+            document.getElementById('total-products').innerHTML = products.length;
+
+            // Calcular productos con bajo stock
+            const lowStock = products.filter(p => p.stock < 5).length;
+            document.getElementById('low-stock').innerHTML = lowStock;
+
+            // Mostrar productos recientes (últimos 5)
+            const recentProducts = products.slice(-5).reverse();
+            const tbody = document.getElementById('recent-products');
+            
+            if (recentProducts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay productos registrados aún. <a href="/products">Crear primer producto</a></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = recentProducts.map(prod => {
+                const stockStatus = prod.stock < 5 
+                    ? '<span style="color: #e74c3c; font-weight: bold;">⚠️ Bajo</span>'
+                    : prod.stock < 20
+                    ? '<span style="color: #f39c12;">⚡ Medio</span>'
+                    : '<span style="color: #27ae60;">✓ Normal</span>';
+                
+                return `
+                    <tr>
+                        <td><strong>${prod.name}</strong></td>
+                        <td>${prod.category_name || 'Sin categoría'}</td>
+                        <td>$${prod.price.toFixed(2)}</td>
+                        <td>${prod.stock}</td>
+                        <td>${stockStatus}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+            document.getElementById('total-categories').innerHTML = '<span style="font-size: 1rem; color: #e74c3c;">Error</span>';
+            document.getElementById('total-products').innerHTML = '<span style="font-size: 1rem; color: #e74c3c;">Error</span>';
+            document.getElementById('low-stock').innerHTML = '<span style="font-size: 1rem; color: #e74c3c;">Error</span>';
+            document.getElementById('recent-products').innerHTML = '<tr><td colspan="5" class="empty" style="color: #e74c3c;">Error al cargar productos. Verifica que el backend esté corriendo.</td></tr>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStats);
+</script>
+{% endblock %}
